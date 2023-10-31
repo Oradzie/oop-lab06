@@ -2,6 +2,7 @@ package it.unibo.exceptions.fakenetwork.impl;
 
 import it.unibo.exceptions.arithmetic.ArithmeticService;
 import it.unibo.exceptions.fakenetwork.api.NetworkComponent;
+import it.unibo.exceptions.fakenetwork.api.NetworkException;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -29,14 +30,11 @@ public final class ServiceBehindUnstableNetwork implements NetworkComponent {
         /*
          * The probability should be in [0, 1[!
          */
-        if (failProbability >= 0 && failProbability < 1) {
-            this.failProbability = failProbability;
-            randomGenerator = new Random(randomSeed);
-        } else {
-            throw new IllegalArgumentException(
-                    "Given parameter out of bound it should be greather equals to 0 and less than 1");
+        if (failProbability < 0 || failProbability >= 1) {
+            throw new IllegalArgumentException("Probability must be in [0, 1[, provided: " + failProbability);
         }
-
+        this.failProbability = failProbability;
+        randomGenerator = new Random(randomSeed);
     }
 
     /**
@@ -86,7 +84,7 @@ public final class ServiceBehindUnstableNetwork implements NetworkComponent {
 
     private void accessTheNetwork(final String message) throws NetworkException {
         if (randomGenerator.nextDouble() < failProbability) {
-            throw new NetworkException("Generic I/O error");
+            throw message == null ? new NetworkException() : new NetworkException(message);
         }
     }
 
