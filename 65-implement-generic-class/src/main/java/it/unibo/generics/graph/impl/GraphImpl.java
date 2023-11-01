@@ -1,43 +1,97 @@
 package it.unibo.generics.graph.impl;
 
+import java.util.Collections;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
+import it.unibo.generics.graph.api.FringeAccumulationStrategy;
 import it.unibo.generics.graph.api.Graph;
 
-public class GraphImpl<N> implements Graph {
+public class GraphImpl<N> implements Graph<N> {
 
     private final Map<N, Set<N>> edges = new LinkedHashMap<>();
+    private final FringeAccumulationStrategy<Step<N>> strategy;
 
-    GraphImpl() {
-
+    public GraphImpl(final FringeAccumulationStrategy<Step<N>> strategy) {
+        this.strategy = Objects.requireNonNull(strategy);
     }
 
-    public void addNode(Object node) {
-        if (node != null && )
+    public GraphImpl() {
+        this(DepthFirst.getInstance());
     }
 
-    public void addEdge(Object source, Object target) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'addEdge'");
+    @Override
+    public void addEdge(final N source, final N target) {
+        if (nodesExist(source, target)) {
+            edges.get(source).add(target);
+        }
     }
 
-    public Set nodeSet() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'nodeSet'");
+    @Override
+    public void addNode(final N node) {
+        edges.putIfAbsent(node, new HashSet<>());
     }
 
-    public Set linkedNodes(Object node) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'linkedNodes'");
+    @SafeVarargs
+    private boolean nodesExist(final N... nodes) {
+        for (final N node : nodes) {
+            if (!edges.containsKey(node)) {
+                throw new IllegalArgumentException("No such node: " + node);
+            }
+        }
+        return true;
     }
 
-    public List getPath(Object source, Object target) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getPath'");
+    private int getNodesCount() {
+        return edges.keySet().size();
     }
 
+    @Override
+    public List<N> getPath(final N source, final N target) {
+        if (nodesExist(source, target)) {
+            return graphSearch(source, target);
+        } else {
+            return Collections.emptyList();
+        }
+    }
+
+    private List<N> graphSearch(final N source, final N target) {
+        final Deque<Step<N>> fringe = new LinkedList<>();
+        fringe.add(new Step<>(source));
+        final Set<N> alreadyVisited = new HashSet<>();
+        while (!fringe.isEmpty() && alreadyVisited.size() < getNodesCount()) {
+            final Step<N> lastStep = fringe.removeFirst();
+            final N currentNode = lastStep.getPosition();
+            if (currentNode.equals(target)) {
+                return lastStep.getPath();
+            } else if (!alreadyVisited.contains(currentNode)) {
+                alreadyVisited.add(currentNode);
+                updateFringe(fringe, lastStep);
+            }
+        }
+        return Collections.emptyList();
+    }
+
+    @Override
+    public Set<N> linkedNodes(final N node) {
+        return edges.get(node);
+    }
+
+    @Override
+    public Set<N> nodeSet() {
+        return new HashSet<>(edges.keySet());
+    }
+
+    private void updateFringe(final Deque<Step<N>> fringe, final Step<N> lastStep) {
+        final N currentNode = lastStep.getPosition();
+        for (final N reachableNode : linkedNodes(currentNode)) {
+            strategy.addToFringe(fringe, new Step<>(lastStep, reachableNode));
+        }
+    }
 }
